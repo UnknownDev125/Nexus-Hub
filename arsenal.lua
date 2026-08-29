@@ -35,10 +35,12 @@ local Config = {
     AimbotFOV = 180,
     AimbotHitPart = "Head",
     AimbotTeamCheck = true,
+    AimbotWallCheck = true,
     AimbotSmooth = 0.15,
     AimbotHold = true,
     ShowFOV = true,
     FOVColor = Color3.fromRGB(90, 120, 255),
+    FOVColorTarget = Color3.fromRGB(255, 75, 85),
     FOVCenterLock = true,
     Hitbox = false,
     HitboxSize = 6,
@@ -65,6 +67,7 @@ local FOVCircle = nil
 local OriginalSizes = {}
 local ESPObjects = {}
 local BodyVelocity = nil
+local HasClearTarget = false
 
 Combat:AddSection("Aimbot")
 Combat:AddToggle({
@@ -76,6 +79,11 @@ Combat:AddToggle({
     Name = "Hold to Aim",
     Default = true,
     Callback = function(v) Config.AimbotHold = v end
+})
+Combat:AddToggle({
+    Name = "Wall Check",
+    Default = true,
+    Callback = function(v) Config.AimbotWallCheck = v end
 })
 Combat:AddToggle({
     Name = "Show FOV",
@@ -303,6 +311,23 @@ local function GetAimOrigin()
     return UserInputService:GetMouseLocation()
 end
 
+local function IsVisible(part)
+    if not Config.AimbotWallCheck then return true end
+    local origin = Camera.CFrame.Position
+    local direction = (part.Position - origin)
+    local params = RaycastParams.new()
+    params.FilterType = Enum.RaycastFilterType.Exclude
+    local ignore = {LocalPlayer.Character, Camera}
+    local targetChar = part:FindFirstAncestorOfClass("Model")
+    if targetChar then
+        table.insert(ignore, targetChar)
+    end
+    params.FilterDescendantsInstances = ignore
+    params.IgnoreWater = true
+    local result = workspace:Raycast(origin, direction, params)
+    return result == nil
+end
+
 local function GetClosest()
     local best, bestDist = nil, Config.AimbotFOV
     local origin = GetAimOrigin()
@@ -316,10 +341,10 @@ local function GetClosest()
         local sp, on = Camera:WorldToViewportPoint(part.Position)
         if not on or sp.Z < 0 then continue end
         local d = (Vector2.new(sp.X, sp.Y) - origin).Magnitude
-        if d < bestDist then
-            bestDist = d
-            best = part
-        end
+        if d >= bestDist then continue end
+        if not IsVisible(part) then continue end
+        bestDist = d
+        best = part
     end
     return best
 end
@@ -337,15 +362,17 @@ local function UpdateFOV()
     if not FOVCircle then return end
     FOVCircle.Position = GetAimOrigin()
     FOVCircle.Radius = Config.AimbotFOV
-    FOVCircle.Color = Config.FOVColor
+    FOVCircle.Color = HasClearTarget and Config.FOVColorTarget or Config.FOVColor
     FOVCircle.Visible = Config.ShowFOV and Config.Aimbot
 end
 
 local function RunAimbot()
+    HasClearTarget = false
     if not Config.Aimbot then return end
-    if Config.AimbotHold and not Holding then return end
     local target = GetClosest()
     if not target then return end
+    HasClearTarget = true
+    if Config.AimbotHold and not Holding then return end
     local goal = CFrame.new(Camera.CFrame.Position, target.Position)
     local smooth = math.clamp(Config.AimbotSmooth, 0.01, 1)
     Camera.CFrame = Camera.CFrame:Lerp(goal, smooth)
