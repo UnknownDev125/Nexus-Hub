@@ -31,11 +31,12 @@ local Movement = Window:AddTab("Movement")
 local Misc = Window:AddTab("Misc")
 
 local Config = {
-    SilentAim = false,
-    SilentFOV = 180,
-    SilentHitPart = "Head",
-    SilentTeamCheck = true,
-    SilentChance = 100,
+    Aimbot = false,
+    AimbotFOV = 180,
+    AimbotHitPart = "Head",
+    AimbotTeamCheck = true,
+    AimbotSmooth = 0.15,
+    AimbotHold = true,
     ShowFOV = true,
     FOVColor = Color3.fromRGB(90, 120, 255),
     FOVCenterLock = true,
@@ -59,18 +60,22 @@ local Config = {
     NoClip = false,
 }
 
-local CurrentTarget = nil
+local Holding = false
 local FOVCircle = nil
 local OriginalSizes = {}
 local ESPObjects = {}
-local SpoofCount = 0
 local BodyVelocity = nil
 
-Combat:AddSection("Silent Aim")
+Combat:AddSection("Aimbot")
 Combat:AddToggle({
     Name = "Enabled",
     Default = false,
-    Callback = function(v) Config.SilentAim = v end
+    Callback = function(v) Config.Aimbot = v end
+})
+Combat:AddToggle({
+    Name = "Hold to Aim",
+    Default = true,
+    Callback = function(v) Config.AimbotHold = v end
 })
 Combat:AddToggle({
     Name = "Show FOV",
@@ -87,25 +92,25 @@ Combat:AddSlider({
     Min = 40,
     Max = 400,
     Default = 180,
-    Callback = function(v) Config.SilentFOV = v end
+    Callback = function(v) Config.AimbotFOV = v end
+})
+Combat:AddSlider({
+    Name = "Smoothness",
+    Min = 1,
+    Max = 100,
+    Default = 15,
+    Callback = function(v) Config.AimbotSmooth = v / 100 end
 })
 Combat:AddDropdown({
     Name = "Hit Part",
     Options = {"Head", "HumanoidRootPart", "UpperTorso"},
     Default = "Head",
-    Callback = function(v) Config.SilentHitPart = v end
-})
-Combat:AddSlider({
-    Name = "Hit Chance",
-    Min = 1,
-    Max = 100,
-    Default = 100,
-    Callback = function(v) Config.SilentChance = v end
+    Callback = function(v) Config.AimbotHitPart = v end
 })
 Combat:AddToggle({
     Name = "Team Check",
     Default = true,
-    Callback = function(v) Config.SilentTeamCheck = v end
+    Callback = function(v) Config.AimbotTeamCheck = v end
 })
 Combat:AddColorPicker({
     Name = "FOV Color",
@@ -254,6 +259,23 @@ Misc:AddButton({
     end
 })
 
+UserInputService.InputBegan:Connect(function(input, gpe)
+    if gpe then return end
+    if input.UserInputType == Enum.UserInputType.MouseButton2
+        or input.UserInputType == Enum.UserInputType.Touch
+        or input.KeyCode == Enum.KeyCode.E then
+        Holding = true
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton2
+        or input.UserInputType == Enum.UserInputType.Touch
+        or input.KeyCode == Enum.KeyCode.E then
+        Holding = false
+    end
+end)
+
 local function IsAlive(plr)
     local c = plr.Character
     if not c then return false end
@@ -268,7 +290,7 @@ local function IsEnemy(plr, teamCheck)
 end
 
 local function GetHitPart(char)
-    return char:FindFirstChild(Config.SilentHitPart)
+    return char:FindFirstChild(Config.AimbotHitPart)
         or char:FindFirstChild("Head")
         or char:FindFirstChild("HumanoidRootPart")
 end
@@ -282,17 +304,17 @@ local function GetAimOrigin()
 end
 
 local function GetClosest()
-    local best, bestDist = nil, Config.SilentFOV
+    local best, bestDist = nil, Config.AimbotFOV
     local origin = GetAimOrigin()
     for _, plr in ipairs(Players:GetPlayers()) do
-        if not IsEnemy(plr, Config.SilentTeamCheck) then continue end
+        if not IsEnemy(plr, Config.AimbotTeamCheck) then continue end
         if not IsAlive(plr) then continue end
         local char = plr.Character
         if not char then continue end
         local part = GetHitPart(char)
         if not part then continue end
         local sp, on = Camera:WorldToViewportPoint(part.Position)
-        if not on then continue end
+        if not on or sp.Z < 0 then continue end
         local d = (Vector2.new(sp.X, sp.Y) - origin).Magnitude
         if d < bestDist then
             bestDist = d
@@ -314,44 +336,20 @@ end
 local function UpdateFOV()
     if not FOVCircle then return end
     FOVCircle.Position = GetAimOrigin()
-    FOVCircle.Radius = Config.SilentFOV
+    FOVCircle.Radius = Config.AimbotFOV
     FOVCircle.Color = Config.FOVColor
-    FOVCircle.Visible = Config.ShowFOV and Config.SilentAim
+    FOVCircle.Visible = Config.ShowFOV and Config.Aimbot
 end
 
-local function ApplySilentHooks()
-    if not hookmetamethod then return end
-    local old
-    old = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
-        local method = getnamecallmethod()
-        local caller = getcallingscript and getcallingscript()
-        if not checkcaller()
-            and Config.SilentAim
-            and CurrentTarget
-            and SpoofCount < 400
-            and method == "FindPartOnRayWithIgnoreList"
-            and (not caller or tostring(caller.Name) == "Client" or tostring(caller) == "Client")
-        then
-            SpoofCount = SpoofCount + 1
-            local root = LocalPlayer.Character and (
-                LocalPlayer.Character.PrimaryPart
-                or LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                or LocalPlayer.Character:FindFirstChild("Head")
-            )
-            if root and CurrentTarget then
-                return CurrentTarget, (CurrentTarget.Position - root.Position).Unit
-            end
-        end
-        return old(self, ...)
-    end))
+local function RunAimbot()
+    if not Config.Aimbot then return end
+    if Config.AimbotHold and not Holding then return end
+    local target = GetClosest()
+    if not target then return end
+    local goal = CFrame.new(Camera.CFrame.Position, target.Position)
+    local smooth = math.clamp(Config.AimbotSmooth, 0.01, 1)
+    Camera.CFrame = Camera.CFrame:Lerp(goal, smooth)
 end
-
-task.spawn(function()
-    while true do
-        task.wait(1.5)
-        SpoofCount = 0
-    end
-end)
 
 local function ApplyHitbox(plr)
     if not IsEnemy(plr, Config.HitboxTeamCheck) then
@@ -527,15 +525,7 @@ local function HandleMovement()
 end
 
 RunService.RenderStepped:Connect(function()
-    if Config.SilentAim then
-        if math.random(1, 100) <= Config.SilentChance then
-            CurrentTarget = GetClosest()
-        else
-            CurrentTarget = nil
-        end
-    else
-        CurrentTarget = nil
-    end
+    RunAimbot()
     UpdateFOV()
     for _, plr in ipairs(Players:GetPlayers()) do
         ApplyHitbox(plr)
@@ -549,5 +539,4 @@ Players.PlayerRemoving:Connect(function(plr)
     ClearESP(plr)
 end)
 
-ApplySilentHooks()
 print("[Nexus] Arsenal loaded")
