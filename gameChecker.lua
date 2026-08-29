@@ -5,6 +5,10 @@ local Games = {
         Name = "Arsenal",
         Script = "https://raw.githubusercontent.com/UnknownDev125/Nexus-Hub/refs/heads/main/arsenal.lua"
     },
+    [72659788689464] = {
+        Name = "Life in Prison",
+        Script = "https://raw.githubusercontent.com/UnknownDev125/Nexus-Hub/refs/heads/main/lifeinprison.lua"
+    },
 }
 
 local PlaceId = game.PlaceId
