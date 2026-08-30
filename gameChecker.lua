@@ -44,9 +44,29 @@ if Entry then
         warn("[Nexus Hub] " .. tostring(err))
     end
 else
-    game:GetService("StarterGui"):SetCore("SendNotification", {
-        Title = "Nexus Hub",
-        Text = "No script available for this game.",
-        Duration = 5,
-    })
+    -- Try to detect if it's Hooked by game name
+    local gameName = game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name or ""
+    if gameName:lower():find("hooked") then
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Nexus Hub",
+            Text = "Loading Hooked...",
+            Duration = 3,
+        })
+        local ok, err = pcall(function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/UnknownDev125/Nexus-Hub/refs/heads/main/hooked.lua"))()
+        end)
+        if not ok then
+            game:GetService("StarterGui"):SetCore("SendNotification", {
+                Title = "Nexus Hub",
+                Text = "Failed to load Hooked",
+                Duration = 5,
+            })
+        end
+    else
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Nexus Hub",
+            Text = "No script available for this game.",
+            Duration = 5,
+        })
+    end
 end
