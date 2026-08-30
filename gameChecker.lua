@@ -21,15 +21,16 @@ local Games = {
         Name = "Life in Prison",
         Script = "https://raw.githubusercontent.com/UnknownDev125/Nexus-Hub/refs/heads/main/lifeinprison.lua"
     },
+    -- Hooked FFA (Universe ID)
+    [100301524538263] = {
+        Name = "Hooked FFA",
+        Script = "https://raw.githubusercontent.com/UnknownDev125/Nexus-Hub/refs/heads/main/hooked.lua"
+    },
 }
-
--- Add Hooked FFA as a separate check
-local HookedFFA = 9663968307
 
 local PlaceId = game.PlaceId
 local Entry = Games[PlaceId]
 
--- Debug print
 print("[Nexus Hub] Place ID detected:", PlaceId)
 
 if Entry then
@@ -49,27 +50,16 @@ if Entry then
         })
         warn("[Nexus Hub] " .. tostring(err))
     end
-elseif PlaceId == HookedFFA then
-    game:GetService("StarterGui"):SetCore("SendNotification", {
-        Title = "Nexus Hub",
-        Text = "Loading Hooked FFA...",
-        Duration = 3,
-    })
-    local ok, err = pcall(function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/UnknownDev125/Nexus-Hub/refs/heads/main/hooked.lua"))()
-    end)
-    if not ok then
-        game:GetService("StarterGui"):SetCore("SendNotification", {
-            Title = "Nexus Hub",
-            Text = "Failed to load Hooked FFA",
-            Duration = 5,
-        })
-        warn("[Nexus Hub] " .. tostring(err))
-    end
 else
-    -- Fallback detection
+    -- Fallback detection for Hooked
     local isHooked = false
     
+    -- Check by Universe ID
+    if tostring(PlaceId) == "100301524538263" then
+        isHooked = true
+    end
+    
+    -- Check by game name
     local success, info = pcall(function()
         return game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId)
     end)
