@@ -5,6 +5,18 @@ local Games = {
         Name = "Arsenal",
         Script = "https://raw.githubusercontent.com/UnknownDev125/Nexus-Hub/refs/heads/main/arsenal.lua"
     },
+    [11064669018] = {
+        Name = "Hooked",
+        Script = "https://raw.githubusercontent.com/UnknownDev125/Nexus-Hub/refs/heads/main/hooked.lua"
+    },
+    [14979493662] = {
+        Name = "Hooked",
+        Script = "https://raw.githubusercontent.com/UnknownDev125/Nexus-Hub/refs/heads/main/hooked.lua"
+    },
+    [14831286693] = {
+        Name = "Hooked",
+        Script = "https://raw.githubusercontent.com/UnknownDev125/Nexus-Hub/refs/heads/main/hooked.lua"
+    },
     [72659788689464] = {
         Name = "Life in Prison",
         Script = "https://raw.githubusercontent.com/UnknownDev125/Nexus-Hub/refs/heads/main/lifeinprison.lua"
