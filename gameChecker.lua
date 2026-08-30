@@ -1,5 +1,11 @@
 if not game:IsLoaded() then game.Loaded:Wait() end
 
+local PlaceId = game.PlaceId
+local UniverseId = game.GameId or ""
+
+print("[Nexus Hub] Place ID detected:", PlaceId)
+print("[Nexus Hub] Universe ID detected:", UniverseId)
+
 local Games = {
     [286090429] = {
         Name = "Arsenal",
@@ -21,81 +27,56 @@ local Games = {
         Name = "Life in Prison",
         Script = "https://raw.githubusercontent.com/UnknownDev125/Nexus-Hub/refs/heads/main/lifeinprison.lua"
     },
-    -- Hooked FFA (Universe ID)
-    [100301524538263] = {
-        Name = "Hooked FFA",
-        Script = "https://raw.githubusercontent.com/UnknownDev125/Nexus-Hub/refs/heads/main/hooked.lua"
-    },
 }
 
-local PlaceId = game.PlaceId
 local Entry = Games[PlaceId]
-
-print("[Nexus Hub] Place ID detected:", PlaceId)
+local ScriptToLoad = nil
+local GameName = ""
 
 if Entry then
-    game:GetService("StarterGui"):SetCore("SendNotification", {
-        Title = "Nexus Hub",
-        Text = "Loading " .. Entry.Name .. "...",
-        Duration = 3,
-    })
-    local ok, err = pcall(function()
-        loadstring(game:HttpGet(Entry.Script))()
-    end)
-    if not ok then
-        game:GetService("StarterGui"):SetCore("SendNotification", {
-            Title = "Nexus Hub",
-            Text = "Failed to load " .. Entry.Name,
-            Duration = 5,
-        })
-        warn("[Nexus Hub] " .. tostring(err))
-    end
+    ScriptToLoad = Entry.Script
+    GameName = Entry.Name
+    print("[Nexus Hub] Found game by Place ID:", GameName)
+elseif PlaceId == 100301524538263 or UniverseId == 9663968307 then
+    ScriptToLoad = "https://raw.githubusercontent.com/UnknownDev125/Nexus-Hub/refs/heads/main/hooked.lua"
+    GameName = "Hooked FFA"
+    print("[Nexus Hub] Found Hooked FFA by Universe/Place ID")
 else
-    -- Fallback detection for Hooked
-    local isHooked = false
-    
-    -- Check by Universe ID
-    if tostring(PlaceId) == "100301524538263" then
-        isHooked = true
-    end
-    
-    -- Check by game name
     local success, info = pcall(function()
         return game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId)
     end)
     if success and info then
         local name = info.Name or ""
         if name:lower():find("hooked") then
-            isHooked = true
+            ScriptToLoad = "https://raw.githubusercontent.com/UnknownDev125/Nexus-Hub/refs/heads/main/hooked.lua"
+            GameName = "Hooked"
+            print("[Nexus Hub] Found Hooked by game name")
         end
     end
-    
-    if game.JobId and game.JobId:lower():find("hooked") then
-        isHooked = true
-    end
-    
-    if isHooked then
+end
+
+if ScriptToLoad then
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "Nexus Hub",
+        Text = "Loading " .. GameName .. "...",
+        Duration = 3,
+    })
+    print("[Nexus Hub] Loading script from:", ScriptToLoad)
+    local ok, err = pcall(function()
+        loadstring(game:HttpGet(ScriptToLoad))()
+    end)
+    if not ok then
         game:GetService("StarterGui"):SetCore("SendNotification", {
             Title = "Nexus Hub",
-            Text = "Loading Hooked...",
-            Duration = 3,
-        })
-        local ok, err = pcall(function()
-            loadstring(game:HttpGet("https://raw.githubusercontent.com/UnknownDev125/Nexus-Hub/refs/heads/main/hooked.lua"))()
-        end)
-        if not ok then
-            game:GetService("StarterGui"):SetCore("SendNotification", {
-                Title = "Nexus Hub",
-                Text = "Failed to load Hooked",
-                Duration = 5,
-            })
-        end
-    else
-        game:GetService("StarterGui"):SetCore("SendNotification", {
-            Title = "Nexus Hub",
-            Text = "No script available for this game. Place ID: " .. PlaceId,
+            Text = "Failed to load " .. GameName,
             Duration = 5,
         })
-        print("[Nexus Hub] Unknown game - Place ID:", PlaceId)
+        warn("[Nexus Hub] Error: " .. tostring(err))
     end
+else
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "Nexus Hub",
+        Text = "No script available for this game.",
+        Duration = 5,
+    })
 end
